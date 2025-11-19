@@ -1,0 +1,3254 @@
+<!DOCTYPE html>
+<!-- saved from url=(0012)about:srcdoc -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Missile Mayhem</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com/">
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Roboto:wght@400;700&amp;display=swap" rel="stylesheet">
+    
+    <style>
+        /* ============================================
+           CSS RESET & BASE STYLES
+           ============================================ */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            width: 100%; 
+            height: 100%; 
+            overflow: hidden;
+            font-family: 'Roboto', Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* ============================================
+           CSS CUSTOM PROPERTIES
+           ============================================ */
+        :root {
+            /* Animation Timings */
+            --transition-fast: 150ms;
+            --transition-normal: 300ms;
+            --transition-slow: 500ms;
+            
+            /* Easing Functions */
+            --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+            --ease-bounce: cubic-bezier(0.68, -0.6, 0.32, 1.6);
+            
+            /* Spacing Scale (8px grid) */
+            --space-xs: 8px;
+            --space-sm: 16px;
+            --space-md: 24px;
+            --space-lg: 32px;
+            --space-xl: 48px;
+            
+            /* Color System */
+            --color-primary: #FF4444;
+            --color-primary-hover: #FF6666;
+            --color-primary-active: #CC0000;
+            --color-accent: #FFD700;
+            --color-success: #4CAF50;
+            --color-warning: #FF9800;
+            --color-neutral-dark: #1a1a1a;
+            --color-neutral-mid: #333333;
+            --color-neutral-light: #ffffff;
+            
+            /* Shadows & Effects */
+            --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+            --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
+            --glow-primary: 0 0 20px rgba(255, 68, 68, 0.5);
+            --glow-accent: 0 0 20px rgba(255, 215, 0, 0.5);
+            --glow-success: 0 0 20px rgba(76, 175, 80, 0.5);
+        }
+        
+        /* ============================================
+           GAME CONTAINER & CANVAS
+           ============================================ */
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #87CEEB 0%, #4A90E2 100%);
+        }
+        
+        /* ============================================
+           TOP UI BAR (SCORE & HEALTH)
+           ============================================ */
+        #topBar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.6) 100%);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-sm);
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        #healthContainer {
+            display: flex;
+            gap: var(--space-xs);
+            align-items: center;
+        }
+        
+        .heart-icon {
+            width: 56px;
+            height: 56px;
+            filter: drop-shadow(var(--shadow-md));
+            transition: all var(--transition-fast) var(--ease-out);
+        }
+        
+        .heart-icon.active {
+            filter: drop-shadow(var(--glow-success));
+        }
+        
+        .heart-icon.inactive {
+            opacity: 0.3;
+            filter: grayscale(100%);
+        }
+        
+        @media (prefers-reduced-motion: no-preference) {
+            .heart-icon.low-health {
+                animation: pulse 1s ease-in-out infinite;
+            }
+            
+            .heart-icon.damage-taken {
+                animation: shake 0.3s ease-in-out;
+            }
+        }
+        
+        #scoreDisplay {
+            flex: 1;
+            text-align: center;
+        }
+        
+        #scoreLabel {
+            font-family: 'Bebas Neue', Arial Black, sans-serif;
+            font-size: 24px;
+            color: var(--color-accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            margin-bottom: 4px;
+        }
+        
+        #scoreValue {
+            font-family: 'Bebas Neue', Arial Black, sans-serif;
+            font-size: 48px;
+            color: var(--color-neutral-light);
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
+            letter-spacing: 3px;
+        }
+        
+        /* ============================================
+           TOUCH CONTROLS
+           ============================================ */
+        #touchControls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 180px;
+            display: none;
+            gap: var(--space-sm);
+            padding: var(--space-sm);
+            pointer-events: auto;
+            z-index: 10;
+        }
+        
+        #touchControls.visible {
+            display: flex;
+        }
+        
+        .touch-button {
+            flex: 1;
+            min-width: 96px;
+            min-height: 96px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 3px solid rgba(255, 255, 255, 0.8);
+            border-radius: 12px;
+            font-family: 'Bebas Neue', Arial Black, sans-serif;
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--color-neutral-light);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            touch-action: none;
+            cursor: pointer;
+            transition: all var(--transition-fast) var(--ease-out);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .touch-button:active {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: var(--color-accent);
+            transform: scale(0.95);
+            box-shadow: var(--shadow-sm), inset 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+        
+        #fireButton {
+            background: var(--color-primary);
+            border-color: var(--color-neutral-light);
+            flex: 1.5;
+        }
+        
+        #fireButton:active {
+            background: var(--color-primary-active);
+            box-shadow: var(--shadow-sm), var(--glow-primary);
+        }
+        
+        /* ============================================
+           GAME OVER MODAL
+           ============================================ */
+        #gameOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-neutral-light);
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #gameOverlay.visible {
+            display: flex;
+            pointer-events: auto;
+        }
+        
+        @media (prefers-reduced-motion: no-preference) {
+            #gameOverlay.visible {
+                animation: fadeIn var(--transition-slow) var(--ease-out);
+            }
+            
+            #gameOverlay.visible #gameOverTitle {
+                animation: slideDown var(--transition-slow) var(--ease-bounce) 0.1s backwards;
+            }
+            
+            #gameOverlay.visible #finalScore {
+                animation: slideDown var(--transition-slow) var(--ease-bounce) 0.2s backwards;
+            }
+            
+            #gameOverlay.visible #restartButton {
+                animation: slideDown var(--transition-slow) var(--ease-bounce) 0.3s backwards;
+            }
+        }
+        
+        #gameOverContent {
+            text-align: center;
+            padding: var(--space-xl);
+        }
+        
+        #gameOverTitle {
+            font-family: 'Bebas Neue', Arial Black, sans-serif;
+            font-size: 96px;
+            margin: 0 0 var(--space-md) 0;
+            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.8);
+            color: var(--color-primary);
+            letter-spacing: 8px;
+        }
+        
+        #finalScoreLabel {
+            font-family: 'Bebas Neue', Arial Black, sans-serif;
+            font-size: 32px;
+            color: var(--color-accent);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: var(--space-xs);
+        }
+        
+        #finalScoreValue {
+            font-family: 'Bebas Neue', Arial Black, sans-serif;
+            font-size: 72px;
+            color: var(--color-neutral-light);
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
+            letter-spacing: 4px;
+            margin-bottom: var(--space-xl);
+        }
+        
+        #restartButton {
+            min-width: 280px;
+            min-height: 96px;
+            padding: var(--space-md) var(--space-xl);
+            font-family: 'Bebas Neue', Arial Black, sans-serif;
+            font-size: 40px;
+            font-weight: bold;
+            background: var(--color-primary);
+            color: var(--color-neutral-light);
+            border: 3px solid var(--color-neutral-light);
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            transition: all var(--transition-normal) var(--ease-out);
+            letter-spacing: 4px;
+        }
+        
+        #restartButton:hover {
+            background: var(--color-primary-hover);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg), var(--glow-primary);
+        }
+        
+        #restartButton:active {
+            transform: translateY(0);
+            box-shadow: var(--shadow-md);
+        }
+        
+        /* ============================================
+           DAMAGE FLASH EFFECT
+           ============================================ */
+        #damageFlash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 0, 0, 0.5);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 50;
+        }
+        
+        @media (prefers-reduced-motion: no-preference) {
+            #damageFlash.active {
+                animation: flashDamage 0.3s ease-out;
+            }
+        }
+        
+        /* ============================================
+           SCORE POPUP
+           ============================================ */
+        .score-popup {
+            position: absolute;
+            font-family: 'Bebas Neue', Arial Black, sans-serif;
+            font-size: 32px;
+            color: var(--color-accent);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            z-index: 20;
+        }
+        
+        @media (prefers-reduced-motion: no-preference) {
+            .score-popup {
+                animation: floatUp 1s ease-out forwards;
+            }
+        }
+        
+        /* ============================================
+           KEYFRAME ANIMATIONS
+           ============================================ */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+        
+        @keyframes shake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-8px);
+            }
+            75% {
+                transform: translateX(8px);
+            }
+        }
+        
+        @keyframes flashDamage {
+            0% {
+                opacity: 0.7;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+        
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px);
+            }
+        }
+        
+        /* ============================================
+           REDUCED MOTION SUPPORT
+           ============================================ */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+<style data-astrocade-injected="styles">
+/* Astrocade injected styles */
+
+/* Disable tap highlight and text selection on Android */
+* {
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+body {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    -khtml-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+    /* Prevent double-tap zoom on the game area */
+    touch-action: manipulation !important;
+}
+
+/* Allow normal touch behavior for text inputs and editable content */
+input, 
+textarea, 
+[contenteditable="true"], 
+[contenteditable=""] {
+    touch-action: auto !important;
+    -webkit-user-select: text !important;
+    -khtml-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    user-select: text !important;
+}
+
+/* Disable context menu on images and canvas */
+img, canvas {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    pointer-events: auto !important;
+    -webkit-user-drag: none !important;
+    -khtml-user-drag: none !important;
+    -moz-user-drag: none !important;
+    -o-user-drag: none !important;
+    user-drag: none !important;
+    /* Prevent double-tap zoom on images and canvas elements */
+    touch-action: manipulation !important;
+}
+</style><script data-astrocade-injected="error-handlers">
+// Astrocade error handlers
+
+// Disable context menu (right-click/long-press)
+document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+});
+
+// Disable drag on images
+document.addEventListener('dragstart', function(e) {
+    if (e.target.tagName === 'IMG') {
+        e.preventDefault();
+        return false;
+    }
+});
+
+// Intercept console.error calls
+(function() {
+    const originalConsoleError = console.error;
+    console.error = function(...args) {
+        // Call original console.error
+        originalConsoleError.apply(console, args);
+        
+        // Report to parent
+        window.parent.postMessage({ 
+            type: 'GAME_ERROR', 
+            error: {
+                message: args.map(arg => {
+                    if (typeof arg === 'object') {
+                        try {
+                            return JSON.stringify(arg);
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }
+                    return String(arg);
+                }).join(' '),
+                timestamp: Date.now()
+            }
+        }, '*');
+    };
+})();
+
+window.addEventListener('error', function(event) {
+    // Report error back to parent for UI display
+    window.parent.postMessage({ 
+        type: 'GAME_ERROR', 
+        error: {
+            message: event.message || 'Unknown error',
+            stack: event.error?.stack,
+            line: event.lineno,
+            column: event.colno,
+            filename: event.filename,
+            timestamp: Date.now()
+        }
+    }, '*');
+});
+
+window.addEventListener('unhandledrejection', function(event) {
+    // Report promise rejection back to parent
+    window.parent.postMessage({ 
+        type: 'GAME_ERROR', 
+        error: {
+            message: 'Unhandled promise rejection',
+            reason: String(event.reason),
+            timestamp: Date.now()
+        }
+    }, '*');
+});
+</script><script data-astrocade-injected="gesture-tracking">
+// Astrocade gesture tracking
+(function() {
+    if (window.__gestureTrackingInitialized) return;
+    window.__gestureTrackingInitialized = true;
+
+    console.log('[GestureTracking] Initializing gesture detection in iframe');
+
+    // Track touch/mouse state
+    let touchStartTime = 0;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let longPressTimer = null;
+    let isDragging = false;
+    let lastActivityTime = Date.now();
+
+    // Prevent ghost clicks on mobile - track last touch end time
+    let lastTouchEndTime = 0;
+
+    // Helper to send gesture event to parent
+    function sendGesture(gestureData) {
+        window.parent.postMessage({
+            type: 'GAME_GESTURE_EVENT',
+            gesture: gestureData
+        }, '*');
+        lastActivityTime = Date.now();
+    }
+
+    // Helper to calculate swipe direction
+    function getSwipeDirection(deltaX, deltaY) {
+        const absX = Math.abs(deltaX);
+        const absY = Math.abs(deltaY);
+
+        if (absX > absY) {
+            return deltaX > 0 ? 'right' : 'left';
+        } else {
+            return deltaY > 0 ? 'down' : 'up';
+        }
+    }
+
+    // Track drag state
+    let dragDistance = 0;
+
+    // Touch event handlers
+    document.addEventListener('touchstart', function(e) {
+        touchStartTime = Date.now();
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        isDragging = false;
+        dragDistance = 0;
+
+        // Setup long press detection
+        longPressTimer = setTimeout(() => {
+            if (!isDragging) {
+                sendGesture({
+                    type: 'long_press',
+                    timestamp: Date.now(),
+                    x: touchStartX,
+                    y: touchStartY,
+                    duration: Date.now() - touchStartTime
+                });
+            }
+        }, 500);
+
+        // Handle multi-touch (pinch detection)
+        if (e.touches.length > 1) {
+            sendGesture({
+                type: 'pinch',
+                timestamp: touchStartTime,
+                touches: e.touches.length
+            });
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function(e) {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+
+        if (!isDragging && e.touches.length === 1) {
+            const deltaX = e.touches[0].clientX - touchStartX;
+            const deltaY = e.touches[0].clientY - touchStartY;
+            const currentDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+            // Mark as dragging but don't send event yet
+            if (currentDistance > 10) {
+                isDragging = true;
+            }
+            dragDistance = currentDistance;
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchend', function(e) {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+
+        const touchEndTime = Date.now();
+        const touchDuration = touchEndTime - touchStartTime;
+
+        // Get the last touch position
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = touchEndY - touchStartY;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+        // Log drag on end if it was a drag
+        if (isDragging && distance > 10) {
+            sendGesture({
+                type: 'drag',
+                timestamp: touchEndTime,
+                x: touchEndX,
+                y: touchEndY,
+                deltaX: deltaX,
+                deltaY: deltaY,
+                distance: Math.round(distance),
+                duration: touchDuration
+            });
+        }
+        // Detect swipe (fast movement over distance)
+        else if (distance > 50 && touchDuration < 500) {
+            sendGesture({
+                type: 'swipe',
+                timestamp: touchEndTime,
+                x: touchEndX,
+                y: touchEndY,
+                deltaX: deltaX,
+                deltaY: deltaY,
+                direction: getSwipeDirection(deltaX, deltaY),
+                duration: touchDuration
+            });
+        }
+        // Detect tap (short touch without much movement)
+        else if (distance < 10 && touchDuration < 200) {
+            sendGesture({
+                type: 'tap',
+                timestamp: touchEndTime,
+                x: touchEndX,
+                y: touchEndY,
+                duration: touchDuration
+            });
+        }
+
+        isDragging = false;
+        dragDistance = 0;
+
+        // Record touch end time to prevent ghost clicks
+        lastTouchEndTime = touchEndTime;
+    }, { passive: true });
+
+    // Mouse event handlers for desktop
+    let mouseDown = false;
+    let mouseStartX = 0;
+    let mouseStartY = 0;
+    let mouseStartTime = 0;
+    let mouseDragging = false;
+
+    document.addEventListener('mousedown', function(e) {
+        mouseDown = true;
+        mouseStartX = e.clientX;
+        mouseStartY = e.clientY;
+        mouseStartTime = Date.now();
+        mouseDragging = false;
+
+        // Setup long press for mouse
+        longPressTimer = setTimeout(() => {
+            if (mouseDown && !mouseDragging) {
+                sendGesture({
+                    type: 'long_press',
+                    timestamp: Date.now(),
+                    x: mouseStartX,
+                    y: mouseStartY,
+                    duration: Date.now() - mouseStartTime
+                });
+            }
+        }, 500);
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (mouseDown) {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+
+            const deltaX = e.clientX - mouseStartX;
+            const deltaY = e.clientY - mouseStartY;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+            // Mark as dragging but don't send event yet
+            if (distance > 10) {
+                mouseDragging = true;
+            }
+        }
+        // Removed mouse_move tracking when not dragging (too noisy)
+    });
+
+    document.addEventListener('mouseup', function(e) {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+
+        if (mouseDown) {
+            mouseDown = false;
+            const mouseEndTime = Date.now();
+            const mouseDuration = mouseEndTime - mouseStartTime;
+
+            // Check if this is a ghost click (mouse event shortly after touch event)
+            const isGhostClick = (mouseEndTime - lastTouchEndTime) < 500;
+
+            if (isGhostClick) {
+                // Ignore ghost clicks on mobile devices
+                mouseDragging = false;
+                return;
+            }
+
+            const deltaX = e.clientX - mouseStartX;
+            const deltaY = e.clientY - mouseStartY;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+            // Log drag on end if it was a drag
+            if (mouseDragging && distance > 10) {
+                sendGesture({
+                    type: 'drag',
+                    timestamp: mouseEndTime,
+                    x: e.clientX,
+                    y: e.clientY,
+                    deltaX: deltaX,
+                    deltaY: deltaY,
+                    distance: Math.round(distance),
+                    duration: mouseDuration
+                });
+            }
+            // Detect click (short press without much movement)
+            else if (distance < 10 && mouseDuration < 200) {
+                sendGesture({
+                    type: 'click',
+                    timestamp: mouseEndTime,
+                    x: e.clientX,
+                    y: e.clientY,
+                    duration: mouseDuration
+                });
+            }
+            mouseDragging = false;
+        }
+    });
+
+    // Keyboard events for activity tracking
+    document.addEventListener('keydown', function(e) {
+        // Only log if significant time has passed since last activity
+        if (Date.now() - lastActivityTime > 1000) {
+            sendGesture({
+                type: 'keyboard',
+                timestamp: Date.now(),
+                key: e.key
+            });
+        }
+    });
+
+    // Detect scroll events
+    let scrollThrottle = null;
+    document.addEventListener('scroll', function(e) {
+        if (!scrollThrottle) {
+            scrollThrottle = setTimeout(() => {
+                sendGesture({
+                    type: 'scroll',
+                    timestamp: Date.now(),
+                    scrollY: window.scrollY,
+                    scrollX: window.scrollX
+                });
+                scrollThrottle = null;
+            }, 200);
+        }
+    }, { passive: true });
+
+    console.log('[GestureTracking] Gesture detection initialized successfully');
+})();
+</script><link rel="preconnect" href="https://fonts.googleapis.com/"><link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="anonymous"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@900&amp;display=swap"></head>
+<body><script data-astrocade-injected="game-library">"use strict";
+/*
+ * SECURITY: Everything is wrapped in an IIFE (Immediately Invoked Function Expression)
+ * to ensure that internal functions and classes are completely private.
+ *
+ * Only the `lib` object is exposed to the global scope (window.lib).
+ * This prevents AI-generated code from accessing internal implementation details
+ * like createProxiedConfig, commitState, or the CallbackManager class.
+ *
+ * This is important for:
+ * - Security: Prevents tampering with internal state tracking
+ * - Encapsulation: Keeps implementation details private
+ * - Future-proofing: Allows us to add sensitive internal logic safely
+ */
+(() => {
+    // Callback management with support for persistent keys
+    class CallbackManager {
+        constructor() {
+            this.callbacks = new Map();
+            this.idCounter = 0;
+        }
+        register(callback, key) {
+            // Use provided key or generate one
+            const id = key || `cb_${this.idCounter++}_${Date.now()}`;
+            // If using a key and callback already exists, replace it
+            // Silently replace without logging
+            this.callbacks.set(id, callback);
+            return id;
+        }
+        invoke(id, ...args) {
+            const callback = this.callbacks.get(id);
+            if (callback) {
+                try {
+                    callback(...args);
+                }
+                catch (error) {
+                    // Error in callback - will be logged when lib is available
+                }
+            }
+            else {
+                // Callback not found - will be logged when lib is available
+            }
+        }
+        unregister(id) {
+            if (this.callbacks.has(id)) {
+                this.callbacks.delete(id);
+            }
+        }
+        clear() {
+            this.callbacks.clear();
+        }
+        has(key) {
+            return this.callbacks.has(key);
+        }
+    }
+    // ============================================================================
+    // OPTIMIZED ANIMATION SYSTEM - Embedded directly to avoid imports
+    // ============================================================================
+    // Animation Player Factory - Manages sprite sheets and creates animation instances
+    class AnimationPlayerFactory {
+        constructor() {
+            // Sprite sheet management (integrated from SpriteSheetManager)
+            this.imageCache = new Map();
+            this.loadingPromises = new Map();
+            // Frame data cache
+            this.frameDataCache = new Map();
+        }
+        static getInstance() {
+            if (!AnimationPlayerFactory.instance) {
+                AnimationPlayerFactory.instance = new AnimationPlayerFactory();
+            }
+            return AnimationPlayerFactory.instance;
+        }
+        // Sprite sheet management methods (integrated)
+        async loadImage(url) {
+            // Return cached image if available
+            if (this.imageCache.has(url)) {
+                return this.imageCache.get(url);
+            }
+            // Return existing loading promise to avoid duplicate requests
+            if (this.loadingPromises.has(url)) {
+                return this.loadingPromises.get(url);
+            }
+            // Create new loading promise
+            const loadPromise = new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    // Store the image in cache
+                    this.imageCache.set(url, img);
+                    this.loadingPromises.delete(url);
+                    resolve(img);
+                };
+                img.onerror = () => {
+                    this.loadingPromises.delete(url);
+                    reject(new Error(`Failed to load: ${url}`));
+                };
+                img.src = url;
+            });
+            this.loadingPromises.set(url, loadPromise);
+            return loadPromise;
+        }
+        getImage(url) {
+            return this.imageCache.get(url) || null;
+        }
+        isLoaded(url) {
+            return this.imageCache.has(url);
+        }
+        // Frame data preprocessing and caching with optional scaling
+        preprocessFrames(rawFrames) {
+            return rawFrames.map(frame => ({
+                sx: (frame.x || 0),
+                sy: (frame.y || 0),
+                sw: (frame.width || 0),
+                sh: (frame.height || 0),
+                hasCrop: !!(frame.original_width && frame.original_height &&
+                    frame.crop_x !== undefined && frame.crop_y !== undefined),
+                cropX: (frame.crop_x || 0),
+                cropY: (frame.crop_y || 0),
+                originalWidth: (frame.original_width || 0),
+                originalHeight: (frame.original_height || 0)
+            }));
+        }
+        // Preload an animation's sprite sheet and cache frame data
+        async preloadAnimation(assetId, url, frames) {
+            const cacheKey = `${assetId}:${url}`;
+            // Preload sprite sheet first to get actual dimensions
+            await this.loadImage(url);
+            // Preprocess and cache frame data with scaling
+            if (!this.frameDataCache.has(cacheKey)) {
+                this.frameDataCache.set(cacheKey, this.preprocessFrames(frames));
+            }
+        }
+        // Create a lightweight animation player instance
+        createPlayer(assetId, url, frames, fps, loop) {
+            const cacheKey = `${assetId}:${url}`;
+            // Get sprite sheet (may not be loaded yet)
+            const spriteSheet = this.getImage(url);
+            // Get or create processed frames with proper scaling
+            let processedFrames = this.frameDataCache.get(cacheKey);
+            if (!processedFrames) {
+                processedFrames = this.preprocessFrames(frames);
+                this.frameDataCache.set(cacheKey, processedFrames);
+            }
+            // Create instance - it will handle dynamic loading if needed
+            return new AnimationPlayerInstance(this, url, processedFrames, fps, loop, spriteSheet);
+        }
+    }
+    // Lightweight Animation Player Instance
+    class AnimationPlayerInstance {
+        constructor(factory, url, frames, fps, loop, spriteSheet) {
+            // Instance-specific playback state
+            this.currentFrame = 0;
+            this.lastUpdateTime = 0;
+            this.accumulatedTime = 0;
+            this.isPlaying = true;
+            this.isLoaded = false;
+            this.factory = factory;
+            this.spriteSheetUrl = url;
+            this.frames = frames; // Shared reference from factory
+            this.loop = loop;
+            this.frameDuration = 1000 / fps;
+            this.spriteSheet = spriteSheet;
+            this.isLoaded = spriteSheet !== null;
+            // Load sprite sheet if not already loaded
+            if (!this.isLoaded) {
+                this.loadSpriteSheet();
+            }
+        }
+        async loadSpriteSheet() {
+            try {
+                // Check if already loaded in factory
+                this.spriteSheet = this.factory.getImage(this.spriteSheetUrl);
+                if (this.spriteSheet) {
+                    this.isLoaded = true;
+                    return;
+                }
+                // Load through factory with aspect ratio correction
+                this.spriteSheet = await this.factory.loadImage(this.spriteSheetUrl);
+                this.isLoaded = true;
+            }
+            catch (error) {
+                console.error('Failed to load sprite sheet:', error);
+            }
+        }
+        update(timestamp) {
+            if (!this.isPlaying || !this.isLoaded)
+                return;
+            // Initialize timing on first update
+            if (this.lastUpdateTime === 0) {
+                this.lastUpdateTime = timestamp;
+                return;
+            }
+            const deltaTime = timestamp - this.lastUpdateTime;
+            this.lastUpdateTime = timestamp;
+            this.accumulatedTime += deltaTime;
+            // Frame skipping if we're behind
+            while (this.accumulatedTime >= this.frameDuration) {
+                this.accumulatedTime -= this.frameDuration;
+                this.currentFrame++;
+                if (this.currentFrame >= this.frames.length) {
+                    if (this.loop) {
+                        this.currentFrame = 0;
+                    }
+                    else {
+                        this.currentFrame = this.frames.length - 1;
+                        this.isPlaying = false;
+                        break;
+                    }
+                }
+            }
+        }
+        draw(ctx, x, y, width, height) {
+            if (!this.isLoaded || !this.spriteSheet)
+                return;
+            const frame = this.frames[this.currentFrame];
+            if (!frame || frame.sw <= 0 || frame.sh <= 0)
+                return;
+            try {
+                if (frame.hasCrop && frame.originalWidth && frame.originalHeight) {
+                    // Handle cropped frames - restore to original position
+                    const scaleX = width / frame.originalWidth;
+                    const scaleY = height / frame.originalHeight;
+                    const destX = x + (frame.cropX * scaleX);
+                    const destY = y + (frame.cropY * scaleY);
+                    const destW = frame.sw * scaleX;
+                    const destH = frame.sh * scaleY;
+                    ctx.drawImage(this.spriteSheet, frame.sx, frame.sy, frame.sw, frame.sh, destX, destY, destW, destH);
+                }
+                else {
+                    // Simple draw for non-cropped frames
+                    ctx.drawImage(this.spriteSheet, frame.sx, frame.sy, frame.sw, frame.sh, x, y, width, height);
+                }
+            }
+            catch (error) {
+                // Silently handle drawing errors
+            }
+        }
+        getCurrentFrame() {
+            const frame = this.frames[this.currentFrame];
+            return {
+                index: this.currentFrame,
+                frame: frame ? {
+                    x: frame.sx,
+                    y: frame.sy,
+                    w: frame.sw,
+                    h: frame.sh
+                } : undefined,
+                total: this.frames.length
+            };
+        }
+        reset() {
+            this.currentFrame = 0;
+            this.lastUpdateTime = 0;
+            this.accumulatedTime = 0;
+            this.isPlaying = true;
+        }
+        isReady() {
+            return this.isLoaded;
+        }
+    }
+    // Global factory instance
+    let globalAnimationFactory = null;
+    /**
+     * Creates a deep proxy that detects any changes to the gameConfig
+     */
+    function createProxiedConfig(config, path = '') {
+        if (typeof config !== 'object' || config === null) {
+            return config;
+        }
+        if (Array.isArray(config)) {
+            return new Proxy(config, {
+                get(target, prop) {
+                    if (typeof prop === 'symbol' || prop === 'length') {
+                        return target[prop];
+                    }
+                    const value = target[prop];
+                    const currentPath = path ? `${path}[${String(prop)}]` : `[${String(prop)}]`;
+                    return createProxiedConfig(value, currentPath);
+                },
+                set(target, prop, value) {
+                    const oldValue = target[prop];
+                    const isNewProperty = !(prop in target);
+                    target[prop] = value;
+                    const currentPath = path ? `${path}[${String(prop)}]` : `[${String(prop)}]`;
+                    handleProxyChange(currentPath, isNewProperty ? 'add' : 'change', oldValue);
+                    return true;
+                },
+                deleteProperty(target, prop) {
+                    const oldValue = target[prop];
+                    delete target[prop];
+                    const currentPath = path ? `${path}[${String(prop)}]` : `[${String(prop)}]`;
+                    handleProxyChange(currentPath, 'delete', oldValue);
+                    return true;
+                }
+            });
+        }
+        return new Proxy(config, {
+            get(target, prop) {
+                if (typeof prop === 'symbol') {
+                    return target[prop];
+                }
+                const value = target[prop];
+                const currentPath = path ? `${path}.${String(prop)}` : String(prop);
+                return createProxiedConfig(value, currentPath);
+            },
+            set(target, prop, value) {
+                const oldValue = target[prop];
+                const isNewProperty = !(prop in target);
+                target[prop] = value;
+                const currentPath = path ? `${path}.${String(prop)}` : String(prop);
+                handleProxyChange(currentPath, isNewProperty ? 'add' : 'change', oldValue);
+                return true;
+            },
+            deleteProperty(target, prop) {
+                const oldValue = target[prop];
+                delete target[prop];
+                const currentPath = path ? `${path}.${String(prop)}` : String(prop);
+                handleProxyChange(currentPath, 'delete', oldValue);
+                return true;
+            }
+        });
+    }
+    // Global mode tracking
+    let currentMode = 'play';
+    // Smart commit timing
+    let commitTimer = null;
+    let isDragging = false;
+    let isBatchOperation = false;
+    // Debounced commit function - delays commit until user stops making changes
+    function debouncedCommit(delay = 500) {
+        if (commitTimer !== null) {
+            clearTimeout(commitTimer);
+        }
+        commitTimer = setTimeout(() => {
+            if (currentMode === 'edit' && !isDragging && !isBatchOperation) {
+                commitState();
+            }
+            commitTimer = null;
+        }, delay);
+    }
+    // Helper to track drag state
+    function setDragging(dragging) {
+        isDragging = dragging;
+        if (!dragging && currentMode === 'edit') {
+            // Commit immediately when drag ends
+            commitState();
+        }
+    }
+    // Helper for batch operations
+    function setBatchOperation(batching) {
+        isBatchOperation = batching;
+        if (!batching && currentMode === 'edit') {
+            // Commit immediately when batch ends
+            commitState();
+        }
+    }
+    // Internal commit function
+    function commitState() {
+        if (currentMode !== 'edit') {
+            return;
+        }
+        const state = window.gameConfig || {};
+        const cleanState = JSON.parse(JSON.stringify(state));
+        const commitMessage = {
+            type: 'IFRAME_COMMIT_STATE',
+            state: cleanState
+        };
+        window.parent.postMessage(commitMessage, '*');
+    }
+    // Send live state update
+    function sendLiveUpdate() {
+        if (currentMode !== 'edit') {
+            return;
+        }
+        const state = window.gameConfig || {};
+        // Use JSON serialization to extract values from the Proxy
+        // This also ensures the state is serializable (strips functions, undefined, etc.)
+        const cleanState = JSON.parse(JSON.stringify(state));
+        const liveMessage = {
+            type: 'IFRAME_LIVE_UPDATE',
+            state: cleanState
+        };
+        window.parent.postMessage(liveMessage, '*');
+    }
+    // Internal function called by proxy to track changes
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    function handleProxyChange(path = '', operation = 'change', oldValue) {
+        // Don't track changes in play mode
+        if (currentMode !== 'edit') {
+            return;
+        }
+        // Send live update with full state
+        sendLiveUpdate();
+        // Handle commits based on operation type and state
+        if (!isDragging && !isBatchOperation) {
+            if (operation === 'add' || operation === 'delete') {
+                // Immediate commit for object creation/deletion
+                commitState();
+            }
+            else {
+                // Debounced commit for property changes
+                debouncedCommit();
+            }
+        }
+    }
+    // Flush any pending commits (e.g., when switching modes or before reload)
+    function flushPendingCommits() {
+        if (commitTimer !== null) {
+            clearTimeout(commitTimer);
+            commitTimer = null;
+            // Commit any pending changes before clearing
+            if (currentMode === 'edit') {
+                commitState();
+            }
+        }
+    }
+    // Generic helper function to send message to parent and wait for response
+    function sendMessageToParentWithResponse(message, responseHandler, timeoutMs = 10000) {
+        return new Promise((resolve) => {
+            const messageId = message.messageId;
+            let timeoutId = null;
+            // Set up one-time listener for the response
+            const eventHandler = (event) => {
+                const result = responseHandler(event, messageId);
+                if (result !== null) {
+                    // Clear the timeout since we got a response
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                        timeoutId = null;
+                    }
+                    window.removeEventListener('message', eventHandler);
+                    resolve(result);
+                }
+            };
+            window.addEventListener('message', eventHandler);
+            // Send the message to parent
+            window.parent.postMessage(message, '*');
+            // Set timeout for response
+            timeoutId = setTimeout(() => {
+                window.removeEventListener('message', eventHandler);
+                resolve({ error: 'Request timed out' });
+            }, timeoutMs);
+        });
+    }
+    // Leaderboard-specific response handler
+    function handleLeaderboardResponse(event, messageId) {
+        if (event.data && event.data.type === 'LEADERBOARD_RESPONSE' && event.data.messageId === messageId) {
+            return event.data.response || {};
+        }
+        return null;
+    }
+    // User game state-specific response handler
+    function handleUserGameStateResponse(event, messageId) {
+        if (event.data && event.data.type === 'USER_GAME_STATE_RESPONSE' && event.data.messageId === messageId) {
+            return event.data.response || {};
+        }
+        return null;
+    }
+    // This is the library that will be exposed to the AI's game script.
+    const lib = (() => {
+        const callbackManager = new CallbackManager();
+        // Track current object's callbacks for cleanup
+        let currentObjectCallbacks = [];
+        // Asset map placeholder - will be replaced by build script
+        const ASSET_MAP = {
+  "airplane_sprite": {
+    "url": "https://d3rwqceq3gv95x.cloudfront.net/assets/images/d73da7f9-8bf4-42fc-94b9-07bd3ee77264.webp?quality=70&format=webp&scale=100",
+    "type": "image",
+    "prompt": "Generate a full-body, side view, right-facing stylized cartoon fighter jet airplane. It should be bright red/orange (#FF4444) with white and gray accents. The design should be modern and sleek, with visible cockpit, wings, and tail fin. Use clean, bold shapes with slight gradients for depth. The background should be transparent. Art style: modern cartoon/arcade with smooth edges and vibrant colors, game-ready game asset.",
+    "description": "A stylized cartoon fighter jet airplane in side view, facing right, for the player character.",
+    "subtype": "character",
+    "aspect_ratio": [
+      1445,
+      716
+    ],
+    "compression_suggestion": "low",
+    "view": null,
+    "outline": null,
+    "image_asset_type": null,
+    "audio_type": null,
+    "edited": null,
+    "edit_instructions": null,
+    "edit_reason": null,
+    "original_url": null,
+    "error": null,
+    "duration_hint": null,
+    "loop": null,
+    "animation": null,
+    "scale": 1
+  },
+  "missile_sprite": {
+    "url": "https://d3rwqceq3gv95x.cloudfront.net/assets/images/0c920850-981e-4feb-b800-5db761a10c9e.webp?quality=70&format=webp&scale=100",
+    "type": "image",
+    "prompt": "Generate a full-body, side view, left-facing cartoon-style missile. It should have a dark gray/black body (#333333) with red warning stripes. The shape should be an elongated rocket with a pointed nose cone and tail fins. Include a small flame/exhaust trail at the back. Use clean, bold shapes matching a modern cartoon/arcade art style. The background should be transparent. Game-ready game asset.",
+    "description": "A cartoon-style missile in side view, facing left, used as an enemy projectile.",
+    "subtype": "object",
+    "aspect_ratio": [
+      1241,
+      557
+    ],
+    "compression_suggestion": "medium",
+    "view": null,
+    "outline": null,
+    "image_asset_type": null,
+    "audio_type": null,
+    "edited": null,
+    "edit_instructions": null,
+    "edit_reason": null,
+    "original_url": null,
+    "error": null,
+    "duration_hint": null,
+    "loop": null,
+    "animation": null,
+    "scale": 1
+  },
+  "bullet_sprite": {
+    "url": "https://d3rwqceq3gv95x.cloudfront.net/assets/images/c372daf7-e0c5-4a1b-a4e5-fa52f66c8d15.webp?quality=70&format=webp&scale=100",
+    "type": "image",
+    "prompt": "Generate a small, glowing bullet projectile in side view, facing right. It should be bright yellow/gold (#FFD700) with a slight glow effect. The shape should be an elongated oval or teardrop, suggesting speed and direction. Use a clean, simple design in a modern cartoon/arcade art style, matching the airplane and missile sprites. The background should be transparent. Game-ready game asset.",
+    "description": "A small glowing bullet projectile in side view, facing right, fired by the airplane.",
+    "subtype": "effect",
+    "aspect_ratio": [
+      907,
+      334
+    ],
+    "compression_suggestion": "high",
+    "view": null,
+    "outline": null,
+    "image_asset_type": null,
+    "audio_type": null,
+    "edited": null,
+    "edit_instructions": null,
+    "edit_reason": null,
+    "original_url": null,
+    "error": null,
+    "duration_hint": null,
+    "loop": null,
+    "animation": null,
+    "scale": 1
+  },
+  "cloud_background_1": {
+    "url": "https://d3rwqceq3gv95x.cloudfront.net/assets/images/b5205cea-6c22-4de5-ad57-bb50565bcff1.webp?quality=70&format=webp&scale=100",
+    "type": "image",
+    "prompt": "Generate a soft, fluffy cartoon cloud with a rounded, organic shape for a parallax scrolling background. It should be white with subtle gray shading for depth and have semi-transparent edges. The size should be approximately 150x80 pixels. The art style should be simple, clean cartoon, subtle enough to not distract from gameplay. Game-ready game asset.",
+    "description": "A soft, fluffy cartoon cloud for parallax scrolling background.",
+    "subtype": "background",
+    "aspect_ratio": [
+      1224,
+      744
+    ],
+    "compression_suggestion": "high",
+    "view": null,
+    "outline": null,
+    "image_asset_type": null,
+    "audio_type": null,
+    "edited": null,
+    "edit_instructions": null,
+    "edit_reason": null,
+    "original_url": null,
+    "error": null,
+    "duration_hint": null,
+    "loop": null,
+    "animation": null,
+    "scale": 1
+  },
+  "cloud_background_2": {
+    "url": "https://d3rwqceq3gv95x.cloudfront.net/assets/images/203297d6-d864-4b8a-84bc-861f55005f2a.webp?quality=70&format=webp&scale=100",
+    "type": "image",
+    "prompt": "Generate a soft, fluffy cartoon cloud with a rounded, organic shape, distinctly different from cloud_background_1, for a parallax scrolling background. It should be white with subtle gray shading for depth and have semi-transparent edges. The size should be approximately 120x60 pixels. The art style should be simple, clean cartoon, matching cloud_background_1 and the game's overall aesthetic. Game-ready game asset.",
+    "description": "A soft, fluffy cartoon cloud for parallax scrolling background, different shape from cloud_background_1.",
+    "subtype": "background",
+    "aspect_ratio": [
+      866,
+      648
+    ],
+    "compression_suggestion": "high",
+    "view": null,
+    "outline": null,
+    "image_asset_type": null,
+    "audio_type": null,
+    "edited": null,
+    "edit_instructions": null,
+    "edit_reason": null,
+    "original_url": null,
+    "error": null,
+    "duration_hint": null,
+    "loop": null,
+    "animation": null,
+    "scale": 1
+  },
+  "explosion_effect": {
+    "url": "https://d3rwqceq3gv95x.cloudfront.net/assets/images/2f2e76e2-fc74-4976-9a2f-f06562d03616.webp?quality=70&format=webp&scale=100",
+    "type": "image",
+    "prompt": "Generate a dynamic, impactful cartoon explosion burst effect. It should feature orange, red, and yellow colors in a starburst pattern with radiating energy lines and particle debris. The background should be transparent. The art style should be modern cartoon/arcade, matching the game's visual style. Game-ready game asset.",
+    "description": "A cartoon explosion burst effect for missile destruction or airplane damage.",
+    "subtype": "effect",
+    "aspect_ratio": [
+      909,
+      908
+    ],
+    "compression_suggestion": "medium",
+    "view": null,
+    "outline": null,
+    "image_asset_type": null,
+    "audio_type": null,
+    "edited": null,
+    "edit_instructions": null,
+    "edit_reason": null,
+    "original_url": null,
+    "error": null,
+    "duration_hint": null,
+    "loop": null,
+    "animation": null,
+    "scale": 1
+  },
+  "heart_icon": {
+    "url": "https://d3rwqceq3gv95x.cloudfront.net/assets/images/4e056660-17ad-4fe5-b58d-d68b40b0473b.webp?quality=70&format=webp&scale=100",
+    "type": "image",
+    "prompt": "Generate a simple, bold cartoon heart icon. It should be bright red (#FF4444) with a white highlight, and have a clean, rounded shape. The background should be transparent. The art style should be modern cartoon/arcade, matching the game's UI aesthetic. Game-ready UI asset.",
+    "description": "A simple, bold cartoon heart icon for displaying health in the UI.",
+    "subtype": "ui",
+    "aspect_ratio": [
+      909,
+      784
+    ],
+    "compression_suggestion": "low",
+    "view": null,
+    "outline": null,
+    "image_asset_type": null,
+    "audio_type": null,
+    "edited": null,
+    "edit_instructions": null,
+    "edit_reason": null,
+    "original_url": null,
+    "error": null,
+    "duration_hint": null,
+    "loop": null,
+    "animation": null,
+    "scale": 1
+  },
+  "engine_sound": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/343e6535-cb6f-4c08-bfcb-b91e31a2fc4a.mp3",
+    "type": "audio",
+    "prompt": "Looping airplane engine sound effect. Steady, mechanical hum with slight variations. Not too loud or distracting. Conveys constant forward motion. Arcade/game sound effect, clean and processed.",
+    "description": "A looping airplane engine sound effect to convey constant forward motion.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "view": null,
+    "outline": null,
+    "image_asset_type": null,
+    "audio_type": null,
+    "edited": null,
+    "edit_instructions": null,
+    "edit_reason": null,
+    "original_url": null,
+    "error": null,
+    "duration_hint": "medium",
+    "loop": true,
+    "animation": null
+  },
+  "bullet_fire_sound": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/bfcf9e4d-e99f-4cf2-a106-c273c77f424f.mp3",
+    "type": "audio",
+    "prompt": "Short, punchy bullet firing sound effect. Quick 'pew' or laser-like shot sound. Bright, energetic tone. Arcade/game sound effect, satisfying and responsive.",
+    "description": "A short, punchy sound effect for firing a bullet.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "view": null,
+    "outline": null,
+    "image_asset_type": null,
+    "audio_type": null,
+    "edited": null,
+    "edit_instructions": null,
+    "edit_reason": null,
+    "original_url": null,
+    "error": null,
+    "duration_hint": "short",
+    "loop": false,
+    "animation": null
+  },
+  "explosion_sound": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/9d4b570c-a6f6-406b-8b26-cb12993a211b.mp3",
+    "type": "audio",
+    "prompt": "Impactful explosion sound effect for when missiles are destroyed. Punchy boom with some crackle. Not too harsh or loud. Arcade/game sound effect, satisfying destruction feedback.",
+    "description": "An impactful explosion sound effect for when missiles are destroyed.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "view": null,
+    "outline": null,
+    "image_asset_type": null,
+    "audio_type": null,
+    "edited": null,
+    "edit_instructions": null,
+    "edit_reason": null,
+    "original_url": null,
+    "error": null,
+    "duration_hint": "short",
+    "loop": false,
+    "animation": null
+  },
+  "damage_sound": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/d3e49c58-156f-4db7-9454-4b1586457983.mp3",
+    "type": "audio",
+    "prompt": "Damage/hit sound effect for when the airplane takes damage. Metallic impact or crash sound. Conveys pain/damage but not game over. Arcade/game sound effect, clear negative feedback.",
+    "description": "A damage/hit sound effect for when the airplane takes damage.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "view": null,
+    "outline": null,
+    "image_asset_type": null,
+    "audio_type": null,
+    "edited": null,
+    "edit_instructions": null,
+    "edit_reason": null,
+    "original_url": null,
+    "error": null,
+    "duration_hint": "short",
+    "loop": false,
+    "animation": null
+  },
+  "game_over_sound": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/76619a9a-a1e6-458a-bec7-650a190d9ae2.mp3",
+    "type": "audio",
+    "prompt": "Game over sound effect. Descending tone or sad musical phrase. Conveys defeat but encourages retry. Arcade/game sound effect, clear but not overly dramatic.",
+    "description": "A game over sound effect to convey defeat and encourage retry.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "view": null,
+    "outline": null,
+    "image_asset_type": null,
+    "audio_type": null,
+    "edited": null,
+    "edit_instructions": null,
+    "edit_reason": null,
+    "original_url": null,
+    "error": null,
+    "duration_hint": "medium",
+    "loop": false,
+    "animation": null
+  },
+  "background_music": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/45592971-ea20-4ef7-ae0b-7140b57e7e5f.mp3",
+    "type": "audio",
+    "prompt": "Upbeat, energetic background music for arcade action gameplay. Fast tempo, driving rhythm. Electronic/chiptune style with melodic elements. Should loop seamlessly. Exciting but not overwhelming. Arcade/game music, retro-modern feel.",
+    "description": "Upbeat, energetic background music for arcade action gameplay.",
+    "subtype": "music",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "view": null,
+    "outline": null,
+    "image_asset_type": null,
+    "audio_type": null,
+    "edited": null,
+    "edit_instructions": null,
+    "edit_reason": null,
+    "original_url": null,
+    "error": null,
+    "duration_hint": "long",
+    "loop": true,
+    "animation": null
+  }
+};
+        // Create editMenu object with open and close methods
+        const editMenu = {
+            open: (options) => {
+                // Clear previous object's callbacks before registering new ones
+                if (currentObjectCallbacks.length > 0) {
+                    currentObjectCallbacks.forEach(id => callbackManager.unregister(id));
+                    currentObjectCallbacks = [];
+                }
+                // Create the payload with registered callbacks for each parameter
+                const infoPayload = {
+                    name: options?.name || '',
+                    params: {}
+                };
+                // Process each parameter and register its onChange callback
+                Object.entries(options.params).forEach(([name, meta]) => {
+                    // Only register callback if onChange is provided
+                    let callbackKey;
+                    if (meta.onChange) {
+                        // Auto-generate a stable callback key based on the parameter's state key
+                        callbackKey = `param_${meta.key.replace(/\./g, '_')}`;
+                        // Wrap the onChange to handle commit parameter
+                        const wrappedOnChange = (value, commit) => {
+                            meta.onChange(value, commit);
+                            // If commit is explicitly true, commit immediately
+                            if (commit === true) {
+                                commitState();
+                            }
+                        };
+                        callbackManager.register(wrappedOnChange, callbackKey);
+                        currentObjectCallbacks.push(callbackKey);
+                    }
+                    // Add parameter with optional callback key (internal use only)
+                    // Remove onChange from the payload to avoid serialization issues
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { onChange: _onChange, ...metaWithoutOnChange } = meta;
+                    infoPayload.params[name] = {
+                        ...metaWithoutOnChange,
+                        ...(callbackKey ? { callbackKey } : {})
+                    };
+                });
+                // Register action callbacks with auto-generated keys
+                if (options.onCopy) {
+                    const onCopyKey = `${options?.name || ''}_copy_action`;
+                    callbackManager.register(options.onCopy, onCopyKey);
+                    currentObjectCallbacks.push(onCopyKey);
+                    infoPayload.onCopyKey = onCopyKey;
+                }
+                if (options.onDelete) {
+                    const onDeleteKey = `${options?.name || ''}_delete_action`;
+                    callbackManager.register(options.onDelete, onDeleteKey);
+                    currentObjectCallbacks.push(onDeleteKey);
+                    infoPayload.onDeleteKey = onDeleteKey;
+                }
+                const message = {
+                    type: 'SHOW_INFO_UI',
+                    payload: infoPayload
+                };
+                window.parent.postMessage(message, '*');
+            },
+            close: () => {
+                // Clean up all callbacks for the current object
+                if (currentObjectCallbacks.length > 0) {
+                    currentObjectCallbacks.forEach(id => callbackManager.unregister(id));
+                    currentObjectCallbacks = [];
+                }
+                const message = {
+                    type: 'HIDE_INFO_UI'
+                };
+                window.parent.postMessage(message, '*');
+            }
+        };
+        const _lib = {
+            log: (text) => {
+                const message = {
+                    type: 'LOG',
+                    payload: `[GAME] ${text}`
+                };
+                window.parent.postMessage(message, '*');
+            },
+            getAsset: (id) => {
+                if (ASSET_MAP && ASSET_MAP[id]) {
+                    return ASSET_MAP[id];
+                }
+                _lib.log(`Asset with id '${id}' not found in asset map.`);
+                return undefined;
+            },
+            getAnimationPlayer: (assetId) => {
+                const asset = _lib.getAsset(assetId);
+                if (!asset || !asset.animation || !asset.url || !asset.animation.frames) {
+                    return null;
+                }
+                const animData = asset.animation;
+                // Get or create factory
+                if (!globalAnimationFactory) {
+                    globalAnimationFactory = AnimationPlayerFactory.getInstance();
+                }
+                // Create lightweight animation player instance using factory
+                const player = globalAnimationFactory.createPlayer(assetId, asset.url, animData.frames, // We already checked it's not null above
+                animData.fps || 30, animData.loop !== false);
+                if (!player) {
+                    return null;
+                }
+                // Return API matching original AnimationPlayer interface
+                return {
+                    update: (timestamp) => player.update(timestamp),
+                    draw: (ctx, x, y, width, height) => {
+                        player.draw(ctx, x, y, width, height);
+                    },
+                    getCurrentFrame: () => player.getCurrentFrame(),
+                    reset: () => player.reset()
+                };
+            },
+            preloadAnimation: async (assetId) => {
+                const asset = _lib.getAsset(assetId);
+                if (!asset || !asset.animation || !asset.url || !asset.animation.frames) {
+                    return;
+                }
+                // Get or create factory
+                if (!globalAnimationFactory) {
+                    globalAnimationFactory = AnimationPlayerFactory.getInstance();
+                }
+                // Preload animation sprite sheet and cache frame data
+                await globalAnimationFactory.preloadAnimation(assetId, asset.url, asset.animation.frames);
+            },
+            editMenu,
+            // Show game parameters UI
+            showGameParameters: (options) => {
+                const payload = {
+                    name: options?.name || '',
+                    params: {},
+                    isGameParameters: true // Special flag to identify game parameters
+                };
+                // Process each parameter and register its onChange callback
+                Object.entries(options.params).forEach(([name, meta]) => {
+                    // Only register callback if onChange is provided
+                    let callbackKey;
+                    if (meta.onChange) {
+                        // Auto-generate a stable callback key based on the parameter's state key
+                        callbackKey = `game_param_${meta.key.replace(/\./g, '_')}`;
+                        // Wrap the onChange to handle commit parameter
+                        const wrappedOnChange = (value, commit) => {
+                            meta.onChange(value, commit);
+                            // If commit is explicitly true, commit immediately
+                            if (commit === true) {
+                                commitState();
+                            }
+                        };
+                        callbackManager.register(wrappedOnChange, callbackKey);
+                    }
+                    // Add parameter with optional callback key (internal use only)
+                    // Remove onChange from the payload to avoid serialization issues
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { onChange: _onChange, ...metaWithoutOnChange } = meta;
+                    payload.params[name] = {
+                        ...metaWithoutOnChange,
+                        ...(callbackKey ? { callbackKey } : {})
+                    };
+                });
+                const message = {
+                    type: 'SHOW_INFO_UI',
+                    payload
+                };
+                window.parent.postMessage(message, '*');
+            },
+            // Commit current state - call this after making changes to create an undo/redo checkpoint
+            commitState: () => {
+                commitState();
+            },
+            // Start drag operation - prevents auto-commits during dragging
+            startDrag: () => {
+                setDragging(true);
+            },
+            // End drag operation - commits state immediately
+            endDrag: () => {
+                setDragging(false);
+            },
+            // Start batch operation - prevents auto-commits during multiple changes
+            startBatch: () => {
+                setBatchOperation(true);
+            },
+            // End batch operation - commits state immediately
+            endBatch: () => {
+                setBatchOperation(false);
+            },
+            // Convenience method to run a batch operation
+            batch: (operation) => {
+                setBatchOperation(true);
+                try {
+                    const result = operation();
+                    setBatchOperation(false);
+                    return result;
+                }
+                catch (error) {
+                    setBatchOperation(false);
+                    throw error;
+                }
+            },
+            // Add a player's score to the leaderboard
+            addPlayerScoreToLeaderboard: async (score, numEntries) => {
+                // Validate that we have a game ID
+                if (!gameMetadata?.gameId) {
+                    const errorMsg = 'Cannot submit score: Game ID not available. This game may not be saved yet.';
+                    _lib.log(`[Leaderboard] ${errorMsg}`);
+                    throw new Error(errorMsg);
+                }
+                try {
+                    // Send message to parent to make the API call
+                    const messageId = `leaderboard_add_${Date.now()}`;
+                    const response = await sendMessageToParentWithResponse({
+                        type: 'LEADERBOARD_ADD_SCORE',
+                        messageId,
+                        payload: {
+                            gameId: gameMetadata.gameId,
+                            score: String(score), // API expects string
+                            numEntries
+                        }
+                    }, handleLeaderboardResponse);
+                    if (response.error) {
+                        _lib.log(`Failed to add score to leaderboard: ${response.error}`);
+                        throw new Error(response.error);
+                    }
+                    return response.data;
+                }
+                catch (error) {
+                    _lib.log(`Error adding score to leaderboard: ${error}`);
+                    throw error;
+                }
+            },
+            // Get the top N entries from a leaderboard
+            getTopNEntriesFromLeaderboard: async (numEntries) => {
+                // Validate that we have a game ID
+                if (!gameMetadata?.gameId) {
+                    const errorMsg = 'Cannot get leaderboard: Game ID not available. This game may not be saved yet.';
+                    _lib.log(`[Leaderboard] ${errorMsg}`);
+                    throw new Error(errorMsg);
+                }
+                try {
+                    // Send message to parent to make the API call
+                    const messageId = `leaderboard_get_${Date.now()}`;
+                    const response = await sendMessageToParentWithResponse({
+                        type: 'LEADERBOARD_GET_ENTRIES',
+                        messageId,
+                        payload: {
+                            gameId: gameMetadata.gameId,
+                            numEntries
+                        }
+                    }, handleLeaderboardResponse);
+                    if (response.error) {
+                        _lib.log(`Failed to get leaderboard entries: ${response.error}`);
+                        throw new Error(response.error);
+                    }
+                    return response.data;
+                }
+                catch (error) {
+                    _lib.log(`Error getting leaderboard entries: ${error}`);
+                    throw error;
+                }
+            },
+            // Save user's game state
+            saveUserGameState: async (state) => {
+                // Validate that we have a game ID
+                if (!gameMetadata?.gameId) {
+                    const errorMsg = 'Cannot save game state: Game ID not available. This game may not be saved yet.';
+                    _lib.log(`[UserGameState] ${errorMsg}`);
+                    throw new Error(errorMsg);
+                }
+                try {
+                    // Deep clone the state to avoid DataCloneError from Proxy objects
+                    // This ensures the state can be safely passed via postMessage
+                    const clonedState = JSON.parse(JSON.stringify(state));
+                    // Send message to parent to make the API call
+                    const messageId = `user_game_state_set_${Date.now()}`;
+                    const response = await sendMessageToParentWithResponse({
+                        type: 'USER_GAME_STATE_SET',
+                        messageId,
+                        payload: {
+                            gameId: gameMetadata.gameId,
+                            state: clonedState
+                        }
+                    }, handleUserGameStateResponse);
+                    if (response.error) {
+                        _lib.log(`Failed to save game state: ${response.error}`);
+                        throw new Error(response.error);
+                    }
+                    return response.data;
+                }
+                catch (error) {
+                    _lib.log(`Error saving game state: ${error}`);
+                    throw error;
+                }
+            },
+            // Get user's game state
+            getUserGameState: async () => {
+                // Validate that we have a game ID
+                if (!gameMetadata?.gameId) {
+                    const errorMsg = 'Cannot get game state: Game ID not available. This game may not be saved yet.';
+                    _lib.log(`[UserGameState] ${errorMsg}`);
+                    throw new Error(errorMsg);
+                }
+                try {
+                    // Send message to parent to make the API call
+                    const messageId = `user_game_state_get_${Date.now()}`;
+                    const response = await sendMessageToParentWithResponse({
+                        type: 'USER_GAME_STATE_GET',
+                        messageId,
+                        payload: {
+                            gameId: gameMetadata.gameId
+                        }
+                    }, handleUserGameStateResponse);
+                    if (response.error) {
+                        _lib.log(`Failed to get game state: ${response.error}`);
+                        throw new Error(response.error);
+                    }
+                    return response.data;
+                }
+                catch (error) {
+                    _lib.log(`Error getting game state: ${error}`);
+                    throw error;
+                }
+            },
+            // Delete user's game state
+            deleteUserGameState: async () => {
+                // Validate that we have a game ID
+                if (!gameMetadata?.gameId) {
+                    const errorMsg = 'Cannot delete game state: Game ID not available. This game may not be saved yet.';
+                    _lib.log(`[UserGameState] ${errorMsg}`);
+                    throw new Error(errorMsg);
+                }
+                try {
+                    // Send message to parent to make the API call
+                    const messageId = `user_game_state_delete_${Date.now()}`;
+                    const response = await sendMessageToParentWithResponse({
+                        type: 'USER_GAME_STATE_DELETE',
+                        messageId,
+                        payload: {
+                            gameId: gameMetadata.gameId
+                        }
+                    }, handleUserGameStateResponse);
+                    if (response.error) {
+                        _lib.log(`Failed to delete game state: ${response.error}`);
+                        throw new Error(response.error);
+                    }
+                    return response.data;
+                }
+                catch (error) {
+                    _lib.log(`Error deleting game state: ${error}`);
+                    throw error;
+                }
+            }
+            // getGameDimensions() is defined below
+        };
+        // Store game metadata for overlay and leaderboard
+        let gameMetadata = null;
+        // Click-to-play overlay function (private, not exposed to AI)
+        function createClickToPlayOverlay(onClickCallback) {
+            // Guard: Don't create overlay if one already exists
+            if (document.querySelector('[data-astrocade-overlay="click-to-play"]')) {
+                _lib.log('[Overlay] Click-to-play overlay already exists');
+                return;
+            }
+            try {
+                // Log overlay creation attempt
+                _lib.log('[Overlay] Creating click-to-play overlay');
+                // Ensure DOM is ready
+                if (!document.body) {
+                    _lib.log('[Overlay] ERROR: document.body not available');
+                    return;
+                }
+                // Add Poppins font to the document if not already added
+                if (!document.querySelector('link[href*="fonts.googleapis.com/css2?family=Poppins"]')) {
+                    // Add preconnect for Google Fonts
+                    const preconnect1 = document.createElement('link');
+                    preconnect1.rel = 'preconnect';
+                    preconnect1.href = 'https://fonts.googleapis.com';
+                    document.head.appendChild(preconnect1);
+                    const preconnect2 = document.createElement('link');
+                    preconnect2.rel = 'preconnect';
+                    preconnect2.href = 'https://fonts.gstatic.com';
+                    preconnect2.crossOrigin = 'anonymous';
+                    document.head.appendChild(preconnect2);
+                    // Add Poppins font stylesheet - only 900 weight
+                    const fontLink = document.createElement('link');
+                    fontLink.rel = 'stylesheet';
+                    fontLink.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@900&display=swap';
+                    document.head.appendChild(fontLink);
+                }
+                // Create overlay element
+                const overlay = document.createElement('div');
+                overlay.setAttribute('data-astrocade-overlay', 'click-to-play');
+                // Apply inline styles for the overlay - 75% opacity
+                overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.75);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 99999;
+                cursor: pointer;
+                user-select: none;
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+            `;
+                // Create simple text element
+                const text = document.createElement('div');
+                text.textContent = 'Tap to play!';
+                text.style.cssText = `
+                color: white;
+                font-size: 48px;
+                font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+                font-weight: 900;
+                pointer-events: none;
+            `;
+                // Add text to overlay
+                overlay.appendChild(text);
+                // Add click/touch handler to remove overlay and trigger callback
+                const handleClick = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    overlay.remove();
+                    // Send analytics event for play overlay click
+                    const analyticsMessage = {
+                        type: 'ANALYTICS_MESSAGE',
+                        eventName: 'play_overlay_clicked',
+                        eventData: {
+                            gameTitle: gameMetadata?.title || '',
+                            gameOwnerUsername: gameMetadata?.username || '',
+                            gameId: gameMetadata?.gameId || '',
+                            source: 'click_to_play_overlay'
+                        }
+                    };
+                    window.parent.postMessage(analyticsMessage, '*');
+                    // Execute the callback to run the game
+                    onClickCallback();
+                };
+                // Add both click and touch event handlers for mobile compatibility
+                overlay.addEventListener('click', handleClick);
+                overlay.addEventListener('touchstart', handleClick, { passive: false });
+                // Add to document
+                document.body.appendChild(overlay);
+                _lib.log('[Overlay] Click-to-play overlay created successfully');
+            }
+            catch (error) {
+                _lib.log(`[Overlay] ERROR: Failed to create overlay: ${error}`);
+            }
+        }
+        // Set up FPS tracking
+        function createRunningFpsTracker() {
+            let n = 0;
+            let mean = 0;
+            let M2 = 0;
+            return function (x) {
+                n++;
+                const d = x - mean;
+                mean += d / n;
+                M2 += d * (x - mean);
+                const stdDev = n > 1 ? Math.sqrt(M2 / (n - 1)) : 0;
+                return { mean, stdDev, n };
+            };
+        }
+        let fpsUpdate = createRunningFpsTracker();
+        let lastFpsUpdateTime = performance.now();
+        let lastFpsReportTime = performance.now();
+        let gameLoadStartTime = null; // Track when game loads in play mode
+        const FPS_REPORT_INTERVAL = 1000; // Report FPS every 1 second
+        const FPS_INITIAL_DELAY = 5000; // Don't log FPS for the first 5 seconds
+        function resetFpsTracking(currentTime) {
+            fpsUpdate = createRunningFpsTracker();
+            lastFpsUpdateTime = currentTime;
+            lastFpsReportTime = currentTime;
+        }
+        const trackFps = (currentTime) => {
+            const dt = currentTime - lastFpsUpdateTime;
+            lastFpsUpdateTime = currentTime;
+            // Only track FPS in play mode and after initial delay
+            const shouldTrack = currentMode === 'play' &&
+                gameLoadStartTime !== null &&
+                (currentTime - gameLoadStartTime) >= FPS_INITIAL_DELAY;
+            if (shouldTrack) {
+                const fpsStats = fpsUpdate(dt);
+                // Report FPS at intervals
+                const timeSinceLastReport = currentTime - lastFpsReportTime;
+                if (shouldTrack && timeSinceLastReport >= FPS_REPORT_INTERVAL) {
+                    // Send FPS to parent
+                    window.parent.postMessage({
+                        type: 'GAME_FPS_UPDATE',
+                        fps: (1000 / fpsStats.mean).toFixed(0),
+                        fpsStd: fpsStats.stdDev.toFixed(2),
+                        fpsSamples: fpsStats.n,
+                        timestamp: currentTime
+                    }, '*');
+                    // Reset counters
+                    resetFpsTracking(currentTime);
+                }
+            }
+            else {
+                lastFpsReportTime = currentTime;
+            }
+            requestAnimationFrame(trackFps);
+        };
+        // reset fps counting when we return from focus/visibility change:
+        window.addEventListener('focus', () => { resetFpsTracking(performance.now()); });
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                resetFpsTracking(performance.now());
+            }
+        });
+        // Start FPS tracking
+        requestAnimationFrame(trackFps);
+        // The internal message listener that drives the game.
+        window.addEventListener('message', async (event) => {
+            if (!event.data || !event.data.type)
+                return;
+            const message = event.data;
+            let ackMessage;
+            try {
+                switch (message.type) {
+                    case 'PREPARE_FOR_RELOAD': {
+                        // Flush any pending commits before switching modes/reloading
+                        flushPendingCommits();
+                        break;
+                    }
+                    case 'RUN_WITH_CONFIG': {
+                        // Clear callbacks when reloading
+                        callbackManager.clear();
+                        const { gameConfig, mode, gameMetadata: metadata, hideClickToPlayOverlay, runId } = message;
+                        // Store game metadata for overlay and leaderboard
+                        gameMetadata = metadata || null;
+                        // Update current mode
+                        currentMode = mode || 'play';
+                        // Set game load start time for FPS tracking (only in play mode)
+                        if (currentMode === 'play') {
+                            gameLoadStartTime = performance.now();
+                        }
+                        else {
+                            gameLoadStartTime = null;
+                        }
+                        // Create proxied config for automatic change detection
+                        window.gameConfig = createProxiedConfig(gameConfig);
+                        window.mode = mode;
+                        // Send initial state if in edit mode (live update only, no commit)
+                        if (currentMode === 'edit' && gameConfig) {
+                            // Send live update immediately to sync UI
+                            // Use sendLiveUpdate which handles serialization
+                            sendLiveUpdate();
+                            // DO NOT send commit - the parent already has the committed state
+                            // This prevents duplicate commits during undo/redo operations
+                        }
+                        // Check if run function exists
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const windowWithRun = window;
+                        // Function to actually run the game
+                        const executeRun = async () => {
+                            if (typeof windowWithRun.run === 'function') {
+                                try {
+                                    // IMPORTANT: run() only takes mode. window.gameConfig is already set up!
+                                    // IMPORTANT: we await run() to ensure that all initial assets have been loaded
+                                    // and that setup is complete
+                                    await windowWithRun.run(mode || 'play');
+                                    window.parent.postMessage({
+                                        type: 'RUN_COMPLETED',
+                                        messageId: message.messageId,
+                                        runId: runId
+                                    }, '*');
+                                }
+                                catch (error) {
+                                    _lib.log(`ERROR: Game run() function threw an error: ${error}`);
+                                }
+                            }
+                            else {
+                                _lib.log("ERROR: 'run(mode)' function is not defined by the game script.");
+                                // Send analytics for missing run function
+                                window.parent.postMessage({
+                                    type: 'ANALYTICS_MESSAGE',
+                                    eventName: 'run_function_missing',
+                                    eventData: {
+                                        gameId: gameMetadata?.gameId || '',
+                                        mode: mode
+                                    }
+                                }, '*');
+                                _lib.log(`Available global functions: ${Object.keys(window).filter(k => typeof window[k] === 'function' && !k.startsWith('__')).join(', ')}`);
+                                // Try to find any script tags in the document
+                                const scripts = Array.from(document.getElementsByTagName('script'));
+                                _lib.log(`Found ${scripts.length} script tags in the document`);
+                                scripts.forEach((script, index) => {
+                                    _lib.log(`Script ${index}: ${script.src || 'inline'}, data-astrocade: ${script.getAttribute('data-astrocade-injected') || 'none'}`);
+                                });
+                            }
+                        };
+                        // Show click-to-play overlay in play mode unless explicitly hidden
+                        if (mode === 'play' && !hideClickToPlayOverlay) {
+                            // Use requestAnimationFrame to ensure DOM has been painted
+                            requestAnimationFrame(() => {
+                                // Double RAF to ensure layout is complete
+                                requestAnimationFrame(() => {
+                                    createClickToPlayOverlay(executeRun);
+                                });
+                            });
+                        }
+                        else {
+                            // No overlay, run immediately
+                            await executeRun();
+                        }
+                        break;
+                    }
+                    case 'INVOKE_CALLBACK': {
+                        callbackManager.invoke(message.callbackId, ...(message.args || []));
+                        break;
+                    }
+                    default:
+                        _lib.log(`[lib.ts] Unknown message type: ${message}`);
+                }
+                // If message processing succeeded, prepare success ack
+                if (message.messageId) {
+                    ackMessage = {
+                        type: 'IFRAME_ACK',
+                        messageId: message.messageId,
+                        status: 'success'
+                    };
+                }
+            }
+            catch (error) {
+                // If message processing failed, prepare error ack
+                if (message.messageId) {
+                    ackMessage = {
+                        type: 'IFRAME_ACK',
+                        messageId: message.messageId,
+                        status: 'error',
+                        error: {
+                            message: error instanceof Error ? error.message : 'Unknown error',
+                            stack: error instanceof Error ? error.stack : undefined
+                        }
+                    };
+                }
+                // Also log the error
+                _lib.log(`[lib.ts] Error processing message ${message.type}: ${error}`);
+            }
+            // Send acknowledgment if messageId was provided
+            if (ackMessage) {
+                window.parent.postMessage(ackMessage, '*');
+            }
+        });
+        return _lib;
+    })();
+    // We attach it to the window so it's globally accessible in the iframe's script.
+    window.lib = lib;
+})(); // End of IIFE
+</script>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="720" height="1280"></canvas>
+        
+        <!-- Top UI Bar -->
+        <div id="topBar">
+            <div id="healthContainer">
+                <!-- Hearts will be dynamically added here -->
+            </div>
+            <div id="scoreDisplay">
+                <div id="scoreLabel">Score</div>
+                <div id="scoreValue">0</div>
+            </div>
+            <div style="width: 56px;"></div> <!-- Spacer for symmetry -->
+        </div>
+        
+        <!-- Touch Controls -->
+        <div id="touchControls">
+            <div class="touch-button" id="upButton">▲</div>
+            <div class="touch-button" id="downButton">▼</div>
+            <div class="touch-button" id="fireButton">FIRE</div>
+        </div>
+        
+        <!-- Damage Flash Effect -->
+        <div id="damageFlash"></div>
+        
+        <!-- Game Over Modal -->
+        <div id="gameOverlay">
+            <div id="gameOverContent">
+                <h1 id="gameOverTitle">GAME OVER</h1>
+                <div id="finalScoreLabel">Final Score</div>
+                <div id="finalScoreValue">0</div>
+                <button id="restartButton">PLAY AGAIN</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ==================================================
+         * GAME OVERVIEW: Missile Mayhem - Side-scrolling endless shooter
+         * Control an airplane, dodge and destroy incoming missiles
+         * 3 hits = game over, score increases with survival and destroyed missiles
+         * 
+         * GAME STATE SHAPE: window.gameConfig = {
+         *   airplane: { moveSpeed, fireRate, bulletSpeed, size, x, y },
+         *   missile: { initialSpawnRate, spawnRateAccel, initialSpeed, speedAccel, size, spawnZoneMin, spawnZoneMax },
+         *   game: { startingHealth, scoreMultiplier, difficultyCurve }
+         * }
+         * ==================================================
+         */
+
+        // Global references
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const touchControls = document.getElementById('touchControls');
+        const gameOverlay = document.getElementById('gameOverlay');
+        const restartButton = document.getElementById('restartButton');
+        const damageFlash = document.getElementById('damageFlash');
+        const scoreValueDisplay = document.getElementById('scoreValue');
+        const healthContainer = document.getElementById('healthContainer');
+        
+        // Asset cache
+        const assetCache = {};
+        const audioCache = {};
+        let audioContext = null;
+        
+        // Game state
+        let currentMode = 'play';
+        let gameRunning = false;
+        let gameOver = false;
+        let lastTime = 0;
+        
+        // Runtime state
+        let airplane = null;
+        let missiles = [];
+        let bullets = [];
+        let explosions = [];
+        let clouds = [];
+        let health = 3;
+        let score = 0;
+        let timeSurvived = 0;
+        let missileSpawnTimer = 0;
+        let bulletCooldown = 0;
+        let currentMissileSpawnRate = 2.0;
+        let currentMissileSpeed = 200;
+        
+        // Input state
+        let keys = {};
+        let touchState = { up: false, down: false, fire: false };
+        let isMobile = false;
+        
+        // Edit mode state
+        let selectedObject = null;
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        
+        // Constants
+        const PLAY_AREA_TOP = 100;
+        const PLAY_AREA_BOTTOM = 1180;
+        const PLAY_AREA_HEIGHT = PLAY_AREA_BOTTOM - PLAY_AREA_TOP;
+        
+        /* ==================================================
+         * UI-SPECIFIC JAVASCRIPT FUNCTIONS
+         * These functions handle UI interactions and animations
+         * ==================================================
+         */
+        
+        // Flash damage effect
+        function flashDamage() {
+            damageFlash.classList.add('active');
+            setTimeout(() => {
+                damageFlash.classList.remove('active');
+            }, 300);
+        }
+        
+        // Create score popup animation
+        function createScorePopup(x, y, points) {
+            const popup = document.createElement('div');
+            popup.className = 'score-popup';
+            popup.textContent = '+' + points;
+            popup.style.left = x + 'px';
+            popup.style.top = y + 'px';
+            document.getElementById('gameContainer').appendChild(popup);
+            
+            setTimeout(() => {
+                popup.remove();
+            }, 1000);
+        }
+        
+        // Update health display
+        function updateHealthDisplay() {
+            healthContainer.innerHTML = '';
+            const maxHealth = window.gameConfig.game.startingHealth;
+            
+            for (let i = 0; i < maxHealth; i++) {
+                const heartAsset = assetCache['heart_icon'];
+                if (heartAsset) {
+                    const img = document.createElement('img');
+                    img.src = heartAsset.info.url;
+                    img.className = 'heart-icon';
+                    
+                    if (i < health) {
+                        img.classList.add('active');
+                        if (health === 1) {
+                            img.classList.add('low-health');
+                        }
+                    } else {
+                        img.classList.add('inactive');
+                    }
+                    
+                    healthContainer.appendChild(img);
+                }
+            }
+        }
+        
+        // Animate damage taken on health display
+        function animateHealthDamage() {
+            const hearts = healthContainer.querySelectorAll('.heart-icon.active');
+            if (hearts.length > 0) {
+                const lastHeart = hearts[hearts.length - 1];
+                lastHeart.classList.add('damage-taken');
+                setTimeout(() => {
+                    lastHeart.classList.remove('damage-taken');
+                }, 300);
+            }
+        }
+        
+        // Update score display
+        function updateScoreDisplay() {
+            scoreValueDisplay.textContent = Math.floor(score);
+        }
+        
+        // Show game over with animation
+        function showGameOver() {
+            document.getElementById('finalScoreValue').textContent = Math.floor(score);
+            gameOverlay.classList.add('visible');
+        }
+        
+        /* ==================================================
+         * CORE GAME FUNCTIONS (PRESERVED FROM ORIGINAL)
+         * ==================================================
+         */
+        
+        // Detect mobile device
+        function detectMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                || ('ontouchstart' in window);
+        }
+        
+        // Preload all assets
+        function preloadAssets(callback) {
+            const imageIds = ['airplane_sprite', 'missile_sprite', 'bullet_sprite', 
+                            'cloud_background_1', 'cloud_background_2', 'explosion_effect', 'heart_icon'];
+            const audioIds = ['engine_sound', 'bullet_fire_sound', 'explosion_sound', 
+                            'damage_sound', 'game_over_sound', 'background_music'];
+            
+            let loadedCount = 0;
+            const totalAssets = imageIds.length + audioIds.length;
+            
+            // Initialize audio context
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Load images
+            imageIds.forEach(id => {
+                const assetInfo = lib.getAsset(id);
+                if (assetInfo) {
+                    const img = new Image();
+                    img.onload = () => {
+                        assetCache[id] = { img, info: assetInfo };
+                        loadedCount++;
+                        if (loadedCount === totalAssets) callback();
+                    };
+                    img.onerror = () => {
+                        lib.log('Failed to load image: ' + id);
+                        loadedCount++;
+                        if (loadedCount === totalAssets) callback();
+                    };
+                    img.src = assetInfo.url;
+                } else {
+                    loadedCount++;
+                    if (loadedCount === totalAssets) callback();
+                }
+            });
+            
+            // Load audio
+            audioIds.forEach(id => {
+                const assetInfo = lib.getAsset(id);
+                if (assetInfo) {
+                    fetch(assetInfo.url)
+                        .then(response => response.arrayBuffer())
+                        .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+                        .then(audioBuffer => {
+                            audioCache[id] = { buffer: audioBuffer, info: assetInfo };
+                            loadedCount++;
+                            if (loadedCount === totalAssets) callback();
+                        })
+                        .catch(err => {
+                            lib.log('Failed to load audio: ' + id);
+                            loadedCount++;
+                            if (loadedCount === totalAssets) callback();
+                        });
+                } else {
+                    loadedCount++;
+                    if (loadedCount === totalAssets) callback();
+                }
+            });
+        }
+        
+        // Play sound effect
+        function playSound(id, loop = false) {
+            if (!audioCache[id]) return;
+            
+            try {
+                const source = audioContext.createBufferSource();
+                source.buffer = audioCache[id].buffer;
+                source.loop = loop;
+                
+                const gainNode = audioContext.createGain();
+                gainNode.gain.value = id === 'background_music' ? 0.3 : 0.5;
+                
+                source.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                source.start(0);
+                
+                return source;
+            } catch (err) {
+                lib.log('Error playing sound: ' + id);
+            }
+        }
+        
+        // Initialize game state from config
+        function initializeGameState() {
+            // Create airplane
+            const airplaneAsset = assetCache['airplane_sprite'];
+            const airplaneWidth = window.gameConfig.airplane.size;
+            const airplaneHeight = airplaneAsset ? airplaneWidth / (airplaneAsset.info.aspect_ratio[0] / airplaneAsset.info.aspect_ratio[1]) : airplaneWidth * 0.75;
+            
+            airplane = {
+                x: window.gameConfig.airplane.x,
+                y: window.gameConfig.airplane.y,
+                width: airplaneWidth,
+                height: airplaneHeight,
+                velocityY: 0,
+                asset: airplaneAsset
+            };
+            
+            // Reset game state
+            missiles = [];
+            bullets = [];
+            explosions = [];
+            health = window.gameConfig.game.startingHealth;
+            score = 0;
+            timeSurvived = 0;
+            missileSpawnTimer = 0;
+            bulletCooldown = 0;
+            currentMissileSpawnRate = window.gameConfig.missile.initialSpawnRate;
+            currentMissileSpeed = window.gameConfig.missile.initialSpeed;
+            gameOver = false;
+            
+            // Update UI
+            updateHealthDisplay();
+            updateScoreDisplay();
+            
+            // Create background clouds
+            clouds = [];
+            for (let i = 0; i < 5; i++) {
+                const cloudType = Math.random() > 0.5 ? 'cloud_background_1' : 'cloud_background_2';
+                const cloudAsset = assetCache[cloudType];
+                if (cloudAsset) {
+                    clouds.push({
+                        x: Math.random() * 720,
+                        y: PLAY_AREA_TOP + Math.random() * PLAY_AREA_HEIGHT,
+                        speed: 20 + Math.random() * 30,
+                        asset: cloudAsset,
+                        width: 150,
+                        height: cloudAsset ? 150 / (cloudAsset.info.aspect_ratio[0] / cloudAsset.info.aspect_ratio[1]) : 80
+                    });
+                }
+            }
+            
+            // Play background music
+            playSound('background_music', true);
+        }
+        
+        // Update airplane
+        function updateAirplane(deltaTime) {
+            const config = window.gameConfig.airplane;
+            
+            // Handle input
+            let targetVelocity = 0;
+            if (keys['ArrowUp'] || touchState.up) {
+                targetVelocity = -config.moveSpeed;
+            } else if (keys['ArrowDown'] || touchState.down) {
+                targetVelocity = config.moveSpeed;
+            }
+            
+            // Smooth acceleration
+            const acceleration = 2000;
+            if (targetVelocity !== 0) {
+                airplane.velocityY += (targetVelocity - airplane.velocityY) * Math.min(deltaTime * acceleration / config.moveSpeed, 1);
+            } else {
+                airplane.velocityY *= Math.pow(0.001, deltaTime);
+                if (Math.abs(airplane.velocityY) < 1) airplane.velocityY = 0;
+            }
+            
+            // Update position
+            airplane.y += airplane.velocityY * deltaTime;
+            
+            // Clamp to play area
+            const minY = PLAY_AREA_TOP + airplane.height / 2;
+            const maxY = PLAY_AREA_BOTTOM - airplane.height / 2;
+            airplane.y = Math.max(minY, Math.min(maxY, airplane.y));
+            
+            // Handle shooting
+            if ((keys[' '] || touchState.fire) && bulletCooldown <= 0) {
+                fireBullet();
+                bulletCooldown = 1.0 / config.fireRate;
+            }
+            
+            if (bulletCooldown > 0) {
+                bulletCooldown -= deltaTime;
+            }
+        }
+        
+        // Fire bullet
+        function fireBullet() {
+            const bulletAsset = assetCache['bullet_sprite'];
+            const bulletWidth = 20;
+            const bulletHeight = bulletAsset ? bulletWidth / (bulletAsset.info.aspect_ratio[0] / bulletAsset.info.aspect_ratio[1]) : 10;
+            
+            bullets.push({
+                x: airplane.x + airplane.width / 2,
+                y: airplane.y,
+                width: bulletWidth,
+                height: bulletHeight,
+                speed: window.gameConfig.airplane.bulletSpeed,
+                asset: bulletAsset
+            });
+            
+            playSound('bullet_fire_sound');
+        }
+        
+        // Update missiles
+        function updateMissiles(deltaTime) {
+            const config = window.gameConfig.missile;
+            
+            // Update spawn rate and speed based on difficulty curve
+            const difficultyProgress = Math.min(timeSurvived / 60, 1); // Max difficulty at 60 seconds
+            currentMissileSpawnRate = config.initialSpawnRate - (config.initialSpawnRate - 0.8) * difficultyProgress * config.spawnRateAccel;
+            currentMissileSpeed = config.initialSpeed + (400 - config.initialSpeed) * difficultyProgress * config.speedAccel;
+            
+            // Spawn missiles
+            missileSpawnTimer -= deltaTime;
+            if (missileSpawnTimer <= 0) {
+                spawnMissile();
+                missileSpawnTimer = currentMissileSpawnRate;
+            }
+            
+            // Update existing missiles
+            for (let i = missiles.length - 1; i >= 0; i--) {
+                const missile = missiles[i];
+                missile.x -= missile.speed * deltaTime;
+                
+                // Remove off-screen missiles
+                if (missile.x + missile.width < 0) {
+                    missiles.splice(i, 1);
+                }
+            }
+        }
+        
+        // Spawn missile
+        function spawnMissile() {
+            const config = window.gameConfig.missile;
+            const missileAsset = assetCache['missile_sprite'];
+            const missileWidth = config.size;
+            const missileHeight = missileAsset ? missileWidth / (missileAsset.info.aspect_ratio[0] / missileAsset.info.aspect_ratio[1]) : missileWidth * 0.5;
+            
+            const spawnY = config.spawnZoneMin + Math.random() * (config.spawnZoneMax - config.spawnZoneMin);
+            
+            missiles.push({
+                x: 750,
+                y: spawnY,
+                width: missileWidth,
+                height: missileHeight,
+                speed: currentMissileSpeed,
+                asset: missileAsset
+            });
+        }
+        
+        // Update bullets
+        function updateBullets(deltaTime) {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                bullet.x += bullet.speed * deltaTime;
+                
+                // Remove off-screen bullets
+                if (bullet.x > 750) {
+                    bullets.splice(i, 1);
+                }
+            }
+        }
+        
+        // Check collisions
+        function checkCollisions() {
+            // Bullet-missile collisions
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                
+                for (let j = missiles.length - 1; j >= 0; j--) {
+                    const missile = missiles[j];
+                    
+                    if (checkRectCollision(bullet, missile)) {
+                        // Create explosion
+                        createExplosion(missile.x, missile.y);
+                        
+                        // Create score popup
+                        createScorePopup(missile.x, missile.y - 50, 100);
+                        
+                        // Remove bullet and missile
+                        bullets.splice(i, 1);
+                        missiles.splice(j, 1);
+                        
+                        // Add score
+                        score += 100 * window.gameConfig.game.scoreMultiplier;
+                        updateScoreDisplay();
+                        
+                        playSound('explosion_sound');
+                        break;
+                    }
+                }
+            }
+            
+            // Missile-airplane collisions
+            for (let i = missiles.length - 1; i >= 0; i--) {
+                const missile = missiles[i];
+                
+                if (checkRectCollision(airplane, missile)) {
+                    // Create explosion
+                    createExplosion(missile.x, missile.y);
+                    
+                    // Remove missile
+                    missiles.splice(i, 1);
+                    
+                    // Damage airplane
+                    health--;
+                    updateHealthDisplay();
+                    animateHealthDamage();
+                    flashDamage();
+                    playSound('damage_sound');
+                    
+                    if (health <= 0) {
+                        triggerGameOver();
+                    }
+                }
+            }
+        }
+        
+        // Rectangle collision detection
+        function checkRectCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+        
+        // Create explosion effect
+        function createExplosion(x, y) {
+            const explosionAsset = assetCache['explosion_effect'];
+            if (explosionAsset) {
+                explosions.push({
+                    x: x,
+                    y: y,
+                    width: 80,
+                    height: 80,
+                    lifetime: 0.5,
+                    maxLifetime: 0.5,
+                    asset: explosionAsset
+                });
+            }
+        }
+        
+        // Update explosions
+        function updateExplosions(deltaTime) {
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const explosion = explosions[i];
+                explosion.lifetime -= deltaTime;
+                
+                if (explosion.lifetime <= 0) {
+                    explosions.splice(i, 1);
+                }
+            }
+        }
+        
+        // Update clouds
+        function updateClouds(deltaTime) {
+            for (let cloud of clouds) {
+                cloud.x -= cloud.speed * deltaTime;
+                
+                // Wrap around
+                if (cloud.x + cloud.width < 0) {
+                    cloud.x = 720;
+                    cloud.y = PLAY_AREA_TOP + Math.random() * PLAY_AREA_HEIGHT;
+                }
+            }
+        }
+        
+        // Trigger game over
+        function triggerGameOver() {
+            gameOver = true;
+            gameRunning = false;
+            playSound('game_over_sound');
+            showGameOver();
+        }
+        
+        // Render game
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, 720, 1280);
+            
+            // Draw clouds
+            for (let cloud of clouds) {
+                if (cloud.asset) {
+                    ctx.globalAlpha = 0.6;
+                    ctx.drawImage(cloud.asset.img, cloud.x, cloud.y, cloud.width, cloud.height);
+                    ctx.globalAlpha = 1.0;
+                }
+            }
+            
+            // Draw missiles
+            for (let missile of missiles) {
+                if (missile.asset) {
+                    ctx.drawImage(missile.asset.img, 
+                        missile.x - missile.width / 2, 
+                        missile.y - missile.height / 2, 
+                        missile.width, 
+                        missile.height);
+                }
+                
+                // Edit mode: draw selection outline
+                if (currentMode === 'edit' && selectedObject === missile) {
+                    ctx.strokeStyle = '#FFD700';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(
+                        missile.x - missile.width / 2, 
+                        missile.y - missile.height / 2, 
+                        missile.width, 
+                        missile.height);
+                }
+            }
+            
+            // Draw bullets
+            for (let bullet of bullets) {
+                if (bullet.asset) {
+                    ctx.drawImage(bullet.asset.img, 
+                        bullet.x - bullet.width / 2, 
+                        bullet.y - bullet.height / 2, 
+                        bullet.width, 
+                        bullet.height);
+                }
+            }
+            
+            // Draw airplane
+            if (airplane && airplane.asset) {
+                ctx.drawImage(airplane.asset.img, 
+                    airplane.x - airplane.width / 2, 
+                    airplane.y - airplane.height / 2, 
+                    airplane.width, 
+                    airplane.height);
+                
+                // Edit mode: draw selection outline
+                if (currentMode === 'edit' && selectedObject === airplane) {
+                    ctx.strokeStyle = '#FFD700';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(
+                        airplane.x - airplane.width / 2, 
+                        airplane.y - airplane.height / 2, 
+                        airplane.width, 
+                        airplane.height);
+                }
+            }
+            
+            // Draw explosions
+            for (let explosion of explosions) {
+                if (explosion.asset) {
+                    const alpha = explosion.lifetime / explosion.maxLifetime;
+                    ctx.globalAlpha = alpha;
+                    ctx.drawImage(explosion.asset.img, 
+                        explosion.x - explosion.width / 2, 
+                        explosion.y - explosion.height / 2, 
+                        explosion.width, 
+                        explosion.height);
+                    ctx.globalAlpha = 1.0;
+                }
+            }
+        }
+        
+        // Game loop
+        function gameLoop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            let deltaTime = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+            
+            // Limit delta time
+            deltaTime = Math.min(deltaTime, 0.11);
+            
+            if (gameRunning && !gameOver) {
+                // Update game state
+                timeSurvived += deltaTime;
+                score += deltaTime * 10 * window.gameConfig.game.scoreMultiplier;
+                updateScoreDisplay();
+                
+                updateAirplane(deltaTime);
+                updateMissiles(deltaTime);
+                updateBullets(deltaTime);
+                updateExplosions(deltaTime);
+                updateClouds(deltaTime);
+                checkCollisions();
+            }
+            
+            // Render
+            render();
+            
+            // Continue loop
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Edit mode functions
+        function handleEditClick(x, y) {
+            // Check if clicked on airplane
+            if (airplane && 
+                x >= airplane.x - airplane.width / 2 && 
+                x <= airplane.x + airplane.width / 2 &&
+                y >= airplane.y - airplane.height / 2 && 
+                y <= airplane.y + airplane.height / 2) {
+                selectObject(airplane, 'airplane');
+                return;
+            }
+            
+            // Check if clicked on missile
+            for (let missile of missiles) {
+                if (x >= missile.x - missile.width / 2 && 
+                    x <= missile.x + missile.width / 2 &&
+                    y >= missile.y - missile.height / 2 && 
+                    y <= missile.y + missile.height / 2) {
+                    selectObject(missile, 'missile');
+                    return;
+                }
+            }
+            
+            // Deselect
+            selectedObject = null;
+            lib.editMenu.close();
+        }
+        
+        function selectObject(obj, type) {
+            selectedObject = obj;
+            
+            if (type === 'airplane') {
+                lib.editMenu.open({
+                    name: 'Airplane',
+                    params: {
+                        'Move Speed': {
+                            key: 'gameConfig.airplane.moveSpeed',
+                            type: 'slider',
+                            min: 100,
+                            max: 800,
+                            step: 10,
+                            onChange: (value) => {
+                                window.gameConfig.airplane.moveSpeed = value;
+                            }
+                        },
+                        'Fire Rate': {
+                            key: 'gameConfig.airplane.fireRate',
+                            type: 'slider',
+                            min: 0.5,
+                            max: 10,
+                            step: 0.5,
+                            onChange: (value) => {
+                                window.gameConfig.airplane.fireRate = value;
+                            }
+                        },
+                        'Bullet Speed': {
+                            key: 'gameConfig.airplane.bulletSpeed',
+                            type: 'slider',
+                            min: 200,
+                            max: 1000,
+                            step: 50,
+                            onChange: (value) => {
+                                window.gameConfig.airplane.bulletSpeed = value;
+                            }
+                        },
+                        'Size': {
+                            key: 'gameConfig.airplane.size',
+                            type: 'slider',
+                            min: 40,
+                            max: 120,
+                            step: 5,
+                            onChange: (value) => {
+                                window.gameConfig.airplane.size = value;
+                                airplane.width = value;
+                                const airplaneAsset = assetCache['airplane_sprite'];
+                                airplane.height = airplaneAsset ? value / (airplaneAsset.info.aspect_ratio[0] / airplaneAsset.info.aspect_ratio[1]) : value * 0.75;
+                            }
+                        }
+                    }
+                });
+            } else if (type === 'missile') {
+                lib.editMenu.open({
+                    name: 'Missile Settings',
+                    params: {
+                        'Initial Spawn Rate': {
+                            key: 'gameConfig.missile.initialSpawnRate',
+                            type: 'slider',
+                            min: 0.5,
+                            max: 5,
+                            step: 0.1,
+                            onChange: (value) => {
+                                window.gameConfig.missile.initialSpawnRate = value;
+                            }
+                        },
+                        'Spawn Rate Accel': {
+                            key: 'gameConfig.missile.spawnRateAccel',
+                            type: 'slider',
+                            min: 0,
+                            max: 2,
+                            step: 0.1,
+                            onChange: (value) => {
+                                window.gameConfig.missile.spawnRateAccel = value;
+                            }
+                        },
+                        'Initial Speed': {
+                            key: 'gameConfig.missile.initialSpeed',
+                            type: 'slider',
+                            min: 100,
+                            max: 400,
+                            step: 10,
+                            onChange: (value) => {
+                                window.gameConfig.missile.initialSpeed = value;
+                            }
+                        },
+                        'Speed Accel': {
+                            key: 'gameConfig.missile.speedAccel',
+                            type: 'slider',
+                            min: 0,
+                            max: 2,
+                            step: 0.1,
+                            onChange: (value) => {
+                                window.gameConfig.missile.speedAccel = value;
+                            }
+                        },
+                        'Size': {
+                            key: 'gameConfig.missile.size',
+                            type: 'slider',
+                            min: 30,
+                            max: 100,
+                            step: 5,
+                            onChange: (value) => {
+                                window.gameConfig.missile.size = value;
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        function handleEditDrag(x, y) {
+            if (!selectedObject || !isDragging) return;
+            
+            selectedObject.x = x - dragOffset.x;
+            selectedObject.y = y - dragOffset.y;
+            
+            // Update config if airplane
+            if (selectedObject === airplane) {
+                window.gameConfig.airplane.x = selectedObject.x;
+                window.gameConfig.airplane.y = selectedObject.y;
+            }
+        }
+        
+        // Input handlers
+        function setupInputHandlers() {
+            // Keyboard
+            window.addEventListener('keydown', (e) => {
+                keys[e.key] = true;
+                
+                // Prevent spacebar from scrolling
+                if (e.key === ' ') {
+                    e.preventDefault();
+                }
+            });
+            
+            window.addEventListener('keyup', (e) => {
+                keys[e.key] = false;
+            });
+            
+            // Mouse/Touch for edit mode
+            canvas.addEventListener('mousedown', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) * (720 / rect.width);
+                const y = (e.clientY - rect.top) * (1280 / rect.height);
+                
+                if (currentMode === 'edit') {
+                    handleEditClick(x, y);
+                    if (selectedObject) {
+                        isDragging = true;
+                        dragOffset.x = x - selectedObject.x;
+                        dragOffset.y = y - selectedObject.y;
+                    }
+                }
+            });
+            
+            canvas.addEventListener('mousemove', (e) => {
+                if (currentMode === 'edit' && isDragging) {
+                    const rect = canvas.getBoundingClientRect();
+                    const x = (e.clientX - rect.left) * (720 / rect.width);
+                    const y = (e.clientY - rect.top) * (1280 / rect.height);
+                    handleEditDrag(x, y);
+                }
+            });
+            
+            canvas.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+            
+            // Touch controls
+            if (isMobile) {
+                const upButton = document.getElementById('upButton');
+                const downButton = document.getElementById('downButton');
+                const fireButton = document.getElementById('fireButton');
+                
+                upButton.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    touchState.up = true;
+                });
+                upButton.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    touchState.up = false;
+                });
+                
+                downButton.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    touchState.down = true;
+                });
+                downButton.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    touchState.down = false;
+                });
+                
+                fireButton.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    touchState.fire = true;
+                });
+                fireButton.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    touchState.fire = false;
+                });
+            }
+            
+            // Restart button
+            restartButton.addEventListener('click', () => {
+                gameOverlay.classList.remove('visible');
+                initializeGameState();
+                gameRunning = true;
+            });
+        }
+        
+        // Main run function
+        function run(mode) {
+            lib.log('run() called. Mode: ' + mode);
+            currentMode = mode;
+            
+            // Detect device
+            isMobile = detectMobile();
+            
+            // Show game parameters UI
+            lib.showGameParameters({
+                name: 'Game Settings',
+                params: {
+                    'Starting Health': {
+                        key: 'gameConfig.game.startingHealth',
+                        type: 'slider',
+                        min: 1,
+                        max: 10,
+                        step: 1,
+                        onChange: (value) => {
+                            window.gameConfig.game.startingHealth = value;
+                            if (currentMode === 'play') {
+                                health = value;
+                                updateHealthDisplay();
+                            }
+                        }
+                    },
+                    'Score Multiplier': {
+                        key: 'gameConfig.game.scoreMultiplier',
+                        type: 'slider',
+                        min: 0.5,
+                        max: 3,
+                        step: 0.1,
+                        onChange: (value) => {
+                            window.gameConfig.game.scoreMultiplier = value;
+                        }
+                    },
+                    'Difficulty Curve': {
+                        key: 'gameConfig.game.difficultyCurve',
+                        type: 'slider',
+                        min: 0.5,
+                        max: 2,
+                        step: 0.1,
+                        onChange: (value) => {
+                            window.gameConfig.game.difficultyCurve = value;
+                        }
+                    }
+                }
+            });
+            
+            // Preload assets
+            preloadAssets(() => {
+                lib.log('Assets loaded');
+                
+                // Initialize game state
+                initializeGameState();
+                
+                // Setup input handlers
+                setupInputHandlers();
+                
+                // Show/hide touch controls based on device and mode
+                if (isMobile && mode === 'play') {
+                    touchControls.classList.add('visible');
+                } else {
+                    touchControls.classList.remove('visible');
+                }
+                
+                // Start game loop
+                if (mode === 'play') {
+                    gameRunning = true;
+                } else {
+                    gameRunning = false;
+                    // Spawn a few missiles for editing
+                    for (let i = 0; i < 3; i++) {
+                        spawnMissile();
+                    }
+                }
+                
+                requestAnimationFrame(gameLoop);
+            });
+        }
+    </script>
+
+<script data-astrocade-injected="ready-signal">
+// Astrocade ready signal
+console.log('[iframe] Checking for run function:', typeof window.run);
+console.log('[iframe] Window properties:', Object.keys(window).filter(k => !k.startsWith('__') && !['location', 'history', 'navigator', 'document'].includes(k)).slice(0, 20));
+console.log('[iframe] Sending IFRAME_READY signal');
+window.parent.postMessage({ type: 'IFRAME_READY' }, '*');
+console.log('[iframe] IFRAME_READY signal sent');
+</script><div data-astrocade-overlay="click-to-play" style="position: fixed; top: 0px; left: 0px; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.75); display: flex; justify-content: center; align-items: center; z-index: 99999; cursor: pointer; user-select: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent;"><div style="color: white; font-size: 48px; font-family: Poppins, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, Oxygen, Ubuntu, Cantarell, &quot;Open Sans&quot;, &quot;Helvetica Neue&quot;, sans-serif; font-weight: 900; pointer-events: none;">Tap to play!</div></div></body></html>
